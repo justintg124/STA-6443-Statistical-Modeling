@@ -1,0 +1,358 @@
+---
+title: "Final Exam"
+author: "Justin Gould"
+format: pdf
+editor: visual
+---
+
+## Part 1: Definitions
+
+1. EDA - Exploratory Data Analysis – The process of analyzing data done prior to running a model or serious analysis with the goal of getting to know your data. The EDA phase is meant to help you gain familiarity with your dataset, variables, and data types so that you are more prepared to draw insights from your analysis. The EDA phase is also used to formulate a question to center your analysis around. Useful functions for running EDA include: str(), glimpse(), head(), names(), cor(),  and various scatterplots.
+
+ 
+2. One-Way ANOVA versus Two-Way ANOVA – One way ANOVA is a way to assess if there is a difference in means accross a categorical variable. Typically, there is one numerical variables (i.e. price) and one categorical variable (i.e. Direction – N,W,E,S). Two-Way ANOVA is a larger scale statistical model used for assessing two categorical variables impact on a numerical variable such as: is sale price affected by direction and sqare-footage. The post-test results are significally longer when you run a two-way vs one-way ANOVA test due to the fact that more outcomes are being tested on.
+
+
+3. The method of least squares for regression – The method of least squares is a way to find the line of best fit for a regression model. If you were to plot a graph to showed the relationship between x and y, least squares would help you determine the best fitted line going though your points with the least amount of residual error. This method is often used to minimize residual error in the process of trying find the line of best fit for your regression model.
+
+4. Assumptions of a linear model and how to check them – The assumptions of linear model would be linearity, Homoscedasticity, and Normality of residuals. To check for linearity you would want to assess the relationship between x and y which can be done with a scatterplot and by drawing a regression line between the points. Next would be homscedasticity which is when the variance of the plotted points all move in a constant direction. This assumption exsists to ensure that the noise is constant in your data and not scattered. Lastly, is normality of residual. This is used to measure if your errors are consistent or not. Often tested by using a histogram or a QQ plot.
+
+---
+
+## Part 2: Regression
+
+
+**Installed Packages:**
+
+To begin, I loaded the tidyverse, MASS, pscl, and DataExplorer packages and set the working directory to where my data was located. Lastly, I created a dataframe called housing_data to store the data. Next, I performed an exploratory data analysis on the housing data with the goal of being able to fit this data into regression models and predict housing prices using the variable SalePrice.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+pacman::p_load(tidyverse,MASS,pscl,DataExplorer)
+
+setwd("C:/Users/justi/OneDrive/Desktop/Grad School/UTSA 1st semester/STA 6443 Statistical Modeling/Final") 
+
+households <- read.csv("catalog.csv")  
+```
+
+---
+
+**Data Cleaning:**
+
+Basic Summary - Taking a look at the variables
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+summary(households)
+```
+
+This basic summary gives a look inside of each of the variables that are within this dataset. I will focus mainly on the age, length of residence, spending ratio, spending volume, total assets, wealth index, and spendvel. The reason for focusing mostly on the spending variables is because these are good indicators of spending habits of the people within this dataset.
+
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households |> arrange(Age, desc(Age)) |> head(20)
+```
+
+The first step I took in cleaning out the dataset was to filter the Age variable in DESC order while also including the LenRes column. This revealed that there were 14 values containing people who had an age of 0 and length of residence that was higher than their age. I then removed these invalid data points to improve the accuracy of the data. Additionally, I used the code above to scroll through all 200 observations of the dataset to ensure that the length of residence was never higher than a persons ago. The reason for arranging the age in descending order was to be able to line the length of residence up with it side by side to see if there were any outliers that needed to be removed. The values would need to be removed because a person cannot be 0 and have a length of residence of 5 years simultaneously.
+
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households = households |> filter(Age >= 18)
+```
+
+
+Next, I notced there were about 15 outliers in spending ratio over 150% and I decided to clear these out
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households = households |> filter(SpendRat < 150) 
+```
+
+
+
+Another step in cleaning the data I want to highlight is Total Assets. The mean is 186 and the max is 999. There are values as large as 1000 that deviate from the typical range of 150 - 550. I will remove these outliers because I suspect that these are typos within the dataset and could skew results.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households = households |> filter(TotAsset < 600)
+```
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households |> arrange(SpendVol, desc(SpendVol)) |> head(20)
+```
+
+How can someone have 0 spending volume and still make an income? You have to eat at some point! I will remove these outliers
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households = households |> filter(SpendVol > 80)
+```
+
+Upon making these edits we are now left with 165 observations in the dataset
+
+**EDA:**
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+plot_histogram(households)
+```
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+plot_bar(households)
+```
+
+**SpendRat** This variables graph shows that the spending ratio among the people that are being observed is very right skewed. This indicates that a majority of the people in the dataset have a low to medium spending ratio, indicating that people within this dataset are fiscally responsible. (Assuming that spending ratio is an indicator of how much a person spends of their assets relative to their liabilities.)
+
+**Spending Volume:** This left-skewed graph indicates that people within this dataset are high volume spenders with a major spike in the data in the 450-700 range. This could indicate that people within this dataset are spending at high to medium volumes.
+
+**Spending Velocity** Something interesting to takeaway from these graphs is that these spending variables are incredibly skewed. In graph 1 we have a majority of low spending ratios, in graph 2 we have a lot of high volume spenders, and in graph 3 we have lower velocity spenders. This indicates that we have a specific type of group of people in this dataset: Fiscally responsible, high volume, yet steady, spenders.
+
+**Age:** Next, looking at age you can see that the range of ages most commonly seen in this dataset is between 40 - 60 years old with the mean being right at 54 years of age. Taking into consideration that this data is being run mostly on middle aged people with the exception of outliers.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households |> ggplot(aes(x = TotAsset, y = WlthIdx)) +
+    geom_point(size = 3, color = "#0D47A1") +
+    labs(
+        title = "Total Assets to Wealth Index",
+        x = "Total Assets",
+        y = "Wealth Index"
+    ) +
+    theme_minimal(base_size = 14)
+```
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+cor(households$WlthIdx, households$TotAsset)
+```
+
+**Graph 5:** Excellent! I found correlation and possible linearity.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households |> ggplot(aes(x = TotAsset, y = SecAssets)) +
+    geom_point(size = 3, color = "#0D47A1") +
+    labs(
+        title = "Total Assets to Secondary Assets",
+        x = "Total Assets",
+        y = "Secondary Assets"
+    ) +
+    theme_minimal(base_size = 14)
+```
+
+**Graph 6** More linearity betweeen these two
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+plot_correlation(households)
+```
+
+
+--
+
+**Modeling:**
+
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+#| fig.width: 12
+#| fig.height: 12
+pairs(households)
+pairs(households)
+```
+
+
+**2. Building the Model**
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+
+multiple_reg <- lm(SpendRat ~ ., data = households)
+summary(multiple_reg)
+```
+
+**Takeaway** So far, with SpendRat as the response variable the predictor variables that are statistically significant are: SpendVol (0.033447), CollGifts (0.002929), BricMortar (0.000354), MarthHome (0.001001), and ThemeColl (0.006528). With an adjusted R^2 of .2908 we can see that the model explains 29% of the variation in SpendRat. Also, with an F stat of 7.766e-08 we can see that some of the results are statistically significant.
+
+The age coefficient of 0.17 tells us for every one unit increase in age spending ratio increases by .17. It tells us that older individuals tend to have higher spending ratios.
+
+**3. Stepwise Selection**
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+step_wise <- stepAIC(
+    multiple_reg,
+    direction = "both",
+    trace = TRUE)
+summary(step_wise)
+```
+
+**Takeaway** This new model now goes from a .29 R squared to a .31 R squared showing that this new model does a better job predicting Spending Ratio. Also, this new model has 7 out of 9 statistically signifcant variables meaning it has a better predictive power than the first model.
+
+
+**4. Diagnostics Plots**
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+par(mfrow = c(2, 2))
+plot(step_wise)
+```
+
+The first time I ran this, I notice the QQ plot had a severe curve at the end of the line. I cleaned out the dataset further by removing 14 outliers of Spending ratio and that seemed to do the trick. I will note this in my conclusion.
+
+
+5. Trying out different models
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+households_log <- households |>
+    dplyr::mutate(log_Spend_Rat = log(SpendRat)) |>
+    dplyr::select(log_Spend_Rat, TotAsset, ShortLiq, SpendVol,
+                  CollGifts, BricMortar, MarthaHome, ThemeColl, Carlovers)
+```
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+log_model <- lm(log_Spend_Rat ~ ., data = households_log)
+summary(log_model)
+```
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+par(mfrow = c(2, 2))
+plot(log_model)
+```
+
+**Takeaway:** The best model is the second one titled step_wise with an Adj R^2 of 31% and the best set of statistically significant predictor variables. I tried a fourth model using X^2 and this model was unsuccessful.
+
+
+**6. Conclusion:** 
+
+1. Top spenders score higher in these categories: TotAsset, SpendVol, CollGifts, BricMortar, MarthaHome, ThemeColl, Carlovers. Showing that people with more money typically buy nicer things. 
+
+2. The step_wise model explains 35% of spending behavior
+
+---
+
+## Part 3: Classification
+
+To begin I read in the data and properly named its headers:
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+adult <- read_csv(
+  "adult.data",
+  na = "?",
+  col_names = FALSE
+)
+
+adult <- adult |>
+  setNames(c(
+    "age", "workclass", "fnlwgt", "education", "education_num",
+    "marital_status", "occupation", "relationship", "race", "sex",
+    "capital_gain", "capital_loss", "hours_per_week", "native_country",
+    "income"
+  )) |>
+  dplyr::select(-fnlwgt) |>
+  mutate(income = factor(income, levels = c("<=50K", ">50K")))
+
+```
+
+**EDA:**
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+plot_bar(adult)
+plot_histogram(adult)
+plot_boxplot(adult, by = "income")
+```
+
+**Takeaway:** My main takeaway from these graphs is that age, education_num, and hours_per_week seem to be some of the best predictors for predicting income. According to the plots, people who are on the higher end of the scale tend to have higher income levels. This will be useful when running the model because these will be the variables I use.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+logistic <- glm(formula = income ~ age + education_num + hours_per_week,
+         data = adult,
+         family = binomial)
+summary(logistic)
+```
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+exp(.047)
+exp(0.345)
+exp(0.043)
+```
+
+Since all of the predictors in this model are highly significant I have exponentiation their variables to get the log odds.
+
+To find the R^2
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+pR2(logistic)
+par(mfrow = c(2, 2))
+plot(logistic)
+```
+
+**Takeaways:** The R^2 for this model is .1936~
+
+In this problem, you will develop a model to predict whether income exceeds $50K/yr based on census data.2
+
+**Conclusion:** Based off of this models log odds we can takeaway the following from this model.
+
+1. As a person ages by 1 year their odds of earning a higher income increase by 4.8%
+
+2. As a person increases their education level by year their odds of earning a higher income increase by 41%
+
+3. As a person increases their hours worked per week by 1 hour their odds of earning more increase by 4.4%
