@@ -1,0 +1,442 @@
+---
+title: "Midterm"
+author: Justin Gould
+format: pdf
+editor: visual
+---
+
+**Installed Packages:**
+
+To begin, I loaded the tidyverse package and set the working directory to where my data was located. Lastly, I created a dataframe called housing_data to store the data. Next, I performed an exploratory data analysis on the housing data with the goal of being able to fit this data into regression models and predict housing prices using the variable SalePrice.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+library(tidyverse)
+setwd("C:/Users/justi/OneDrive/Desktop/Grad School/UTSA 1st semester/STA 6443 Statistical Modeling/Midterm") 
+
+housing_data <- read.csv("ames_housing_data-1.csv")  
+```
+
+## 
+
+## 1. Univariate Analysis
+
+To begin my EDA I created a data frame called eda with the purpose of narrowing down the variables within the housing dataset. I restricted my analysis to only focus on these variables: SalePrice, GrLivArea, LotArea, OverallQual, YearBuilt, GarageCars, Neighborhood, CentralAir. I renamed this revised dataset "eda."
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda <- housing_data |> select(SalePrice, GrLivArea, LotArea, OverallQual, YearBuilt, GarageCars, Neighborhood, CentralAir)
+
+```
+
+## 
+
+### Data Dictionary
+
+**SalePrice:** The price the house sold for (dependent variable)
+
+**GrLivArea:** Above grade (ground) living area square feet
+
+**LotArea:** Lot size in square feet
+
+**OverallQual:** Rates the overall material and finish of the house (1-10 scale)
+
+**YearBuilt:** Original construction date
+
+**GarageCars:** Size of garage in car capacity
+
+**Neighborhood:** Physical locations within Ames city limits (categorical)
+
+**CentralAir:** Central air conditioning (Yes or No)
+
+## 
+
+Next, I ran a histogram plot to observe the distribution of the our dependant variable in this analysis. **Sale price will be the dependant variable for this analysis**
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda |> ggplot(aes(x=SalePrice)) + 
+        geom_histogram(fill = "darkgreen", color = "black") + 
+        labs(title = "Sales Price Distribution")
+```
+
+**Takeaway:** This graph uncovers that this data is *right skewed*, meaning that the majority of sales price values are in the low to moderate range within this dataset
+
+## 
+
+Next, I evaluated the distribution of the independent variables.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda |> ggplot(aes(x=OverallQual)) + 
+        geom_histogram(fill = "darkgreen", color = "black", bins = 30) + 
+        labs(
+          title = "Overall Quality Distribution",
+          x = "Overall Quality",
+          y = "Count"
+          )
+```
+
+**Takeaway:** This graph shows that we will be working with a majority of houses in the 5-7 point quality range.
+
+## 
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+ eda |> ggplot(aes(x=YearBuilt)) + 
+        geom_histogram(fill = "darkgreen", color = "black") + 
+        labs(
+    title = "Year Built Distribution",
+    x = "Year Built",
+    y = "Count"
+  ) +
+  scale_x_continuous(breaks = seq(1870, 2020, by = 20))
+```
+
+**Takeaway:** This graph shows a pretty even number of houses built in the 50s-70s and then uncovers a massive spike in houses built in the early 2000s.
+
+## 
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda |> 
+    filter(LotArea <= 50000) |> 
+    ggplot(aes(x=LotArea)) + 
+        geom_histogram(fill = "darkgreen", color = "black", bins = 30) + 
+        labs(
+      title = "Lot Area Distribution", 
+      x = "Lot Area",
+      y = "Count"
+  ) + scale_x_continuous(
+    breaks = seq(0, max(eda$LotArea, na.rm = TRUE), by = 10000))
+```
+
+**Takeaway:** The lot area data is normally distributed in one section and then it right skews. There are many outliers in the 40,000- 100,000 area range but I have applied the filter to normalize the data.
+
+## 
+
+Next, I ran a summary function to evaluate the dependant variable and the categorical variables further.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda |> summary(SalePrice)
+```
+
+**Takeaway:** The SalePrice mean is 214,000 with the min being 34k and the max being 755k. This wide range shows that this sales price data is going to show us a wide variation of sales prices throughout our analysis.
+
+## 
+
+## 2. Bivariet Analysis
+
+In phase 2 of my EDA, I investigate the relationships between the dependent variable and the independent variables.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+cor(eda$SalePrice, eda$GrLivArea)
+cor(eda$SalePrice, eda$OverallQual)
+cor(eda$SalePrice, eda$LotArea)
+cor(eda$SalePrice, eda$GarageCars)
+cor(eda$SalePrice, eda$YearBuilt)
+cor(eda$OverallQual, eda$GarageCars)
+```
+
+**Takeaway:** The strongest correlation is between Sale Price and Overall Quality of **.79**. I also discovered a medium correlation between two independent variables Overall Quality and GarageCars of .64.
+
+## 
+
+I explore our strongest correlation between Sale Price and Overall quality here...
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda |> ggplot(aes(x=OverallQual, y=SalePrice)) + 
+    geom_point(color="darkgreen") +
+    geom_smooth(method = "lm", se = FALSE, color = "black") +
+    labs(title = "Relationship between Sale Price and Overall Quality")
+
+```
+
+**Takeaway:** As quality score increase on the 1-10 scale, sale price increases in a linear fashion with it.
+
+## 
+
+I explore our next strongest corellation here by filtering out the GrLivArea to less than 3,000 sqft to eliminate outliers.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda |> filter(GrLivArea <= 3000) |> 
+    ggplot(aes(x=SalePrice, y=GrLivArea)) + 
+    geom_point(color = "darkblue") +
+    labs(
+            title = "Relationship between Sale Price and Above grade (ground) living area"
+          )
+```
+
+**Takeaway:** This data reveals that Sale Price and Above grade (ground) living area are positively correlated with most of the datapoints moving in linear fasion.
+
+## 
+
+Next, I evaluate the relationship between our dependant variable and one of the categorical variables, cenralair.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda |> ggplot(aes(x=CentralAir, y=SalePrice)) + 
+  geom_boxplot(fill = "lightgreen", color = "black") +
+    labs(title = "Relationship between Sale Price and Air Conditioning")
+
+```
+
+**Takeaway:** Most of the high value properties contrain central air conditioning units.
+
+## 
+
+Next, I investigate the relationship between Sale Price, GrLivArea, and Overall Quality.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+ eda |> ggplot(aes(x = GrLivArea, y = SalePrice, color= OverallQual)) +
+    geom_point() +
+    labs(title = "Sale price relationship between GrLivArea and Overall Quality")
+```
+
+**Takeaway:** This graph shows that the larger the above ground living area is, the better the quality, AND the higher the sales price tend to be.
+
+## 
+
+## 3. Data Cleaning and Transformation
+
+For data cleaning, I checked for outliers within the categorical variables, null values, and references the above charts to take note of any outliers. The outliers I found were in GrLivArea and Lot Area.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+ 
+eda |> summarize(CentralAir_nulls = sum(is.na(CentralAir)), Neighborhood_nulls = sum(is.na(Neighborhood)))
+colSums(is.na(eda))
+
+```
+
+Additionally, I changed row names in the neighborhood column for uniformity.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+ unique(eda$Neighborhood)
+eda <- eda |> mutate(Neighborhood = str_to_title(Neighborhood))
+```
+
+## 
+
+## 4. Feature Selection
+
+I believe based off their high correlation with Sale price, that GrLivArea and OverallQual will be the most important variables for predicting sale price in a model. The positive linear relationship that these variables showed in the bivariate analysis prove that these variables can be accurate predictors for sale price.
+
+## 
+
+## Part 2.
+
+I added a column to the EDA dataset to conduct a one way ANOVA test called Location. This location column shows the neighborhoods categorized as North, South, or West.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+ 
+eda2.0 <- eda |> group_by(Neighborhood) |> 
+       mutate(Location = case_when(
+        Neighborhood %in% c(
+                        "Blmngtn", "Brdale", "Brkside", "Gilbert", "Idotrr",
+                        "Names", "Noridge", "Npkvill", "Nridght",
+                        "Nwames", "Oldtown", "Somerst", "Stonebr") ~ "North",
+        Neighborhood %in% c(
+                        "Meadowv", "Mitchel", "Timber") ~ "South",
+        Neighborhood %in% c(
+                        "Blueste", "Clearcr", "Collgcr", "Crawfor", "Edwards",
+                        "Swisu", "Sawyer", "Sawyerw", "Veenker") ~ "West"))
+```
+
+## 
+
+## AVOVA
+
+**Purpose:** The purpose of this ANOVA test will be to determine if there is a statistically significant difference in sales between the North, South, and West locations.
+
+**Null Hypotheses:**
+
+*There is no difference in mean Sale Price across all locations (North, South, West).*
+
+## 
+
+**Alternative Hypotheses:**
+
+*There is a difference in mean across at least one location.*
+
+First off, I used as.factor to change the categorical variables to factors. Next, I gathered the means of saleprice across location.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true 
+eda2.0$Neighborhood<-as.factor(eda2.0$Neighborhood)
+eda2.0 |> group_by(Location) |> summarize(mean_location = mean(SalePrice))
+
+```
+
+Next, I created a boxplot to show North, South, and West group means.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda2.0 |> ggplot(aes(x = Location, y = SalePrice)) +
+          geom_boxplot(fill = "lightblue", color = "black") +
+          labs(title = "Location Group Means",
+               x = "Sale Price",
+               y = "Location") +
+          theme_minimal()
+```
+
+## 
+
+Next, I conducted the ANOVA test and a Tukeys test to be sure of the results.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+oneway <- aov(SalePrice ~ Location , data = eda2.0)
+summary(oneway)
+```
+
+## 
+
+**Conclusion:** We can conclude from the P \> .0271 value that the P value is significant As a result, to reject the null hypothesis and must dig deeper to find which means are different.
+
+To do this, I perform a tukeys test...
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+TukeyHSD(oneway)
+```
+
+## 
+
+**Takeaway:** According to the p = .0211474 value, there is significant difference in North and West sales prices. There is no statistical evidence to support the other locations sales prices having any significant difference.
+
+## Two Way ANOVA
+
+**Null Hypotheses** We test two null hypothesis in this test:
+
+1.  *There is no difference in mean Sale Price across all locations (North, South, West).*
+2.  *The mean Sale Price is the same across all years houses were built in.*
+
+**Alternative Hypotheses:**
+
+1.  *There is a difference in mean across at least one location.*
+2.  *Thrre is a difference in mean sale price accross years build.*
+
+## 
+
+To begin my test I grouped the year build column into decade long buckets.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda2.0$YearBuilt <- paste0(floor(eda2.0$YearBuilt / 10) * 10, "-", floor(eda2.0$YearBuilt / 10) * 10 + 9)
+```
+
+## 
+
+Next, I looked a boxplot graph that shows the means of all of our decades.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+eda2.0 |> ggplot(aes(x = YearBuilt, y = SalePrice, fill = YearBuilt)) +
+          geom_boxplot(fill = "lightblue", color = "black") +
+          labs(title = "Year Built Means",
+               x = "Sale Price",
+               y = "Year Built") +
+          theme_minimal()
+```
+
+## 
+
+Next, I run the two way ANOVA model...
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+twoway <- aov(SalePrice ~ YearBuilt+Location, data = eda2.0)
+summary(twoway)
+```
+
+## 
+
+**Takeaway:** Both of our p values are significant! Meaning we reject both of the null hypothesis. *There is statistical evidence to support location and year build impacting sale price.*
+
+## 
+
+Next, I run a tukeys test to look deeper...
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+tukeys <- TukeyHSD(twoway)
+print(tukeys)
+```
+
+## 
+
+## Conclusion:
+
+## 
+
+**Location Takeaway:**
+
+Houses build in the South tend to be roughly \$18,000 cheaper than houses built in the North.
+
+Housing build in the West tend to be roughly \$13,0000 cheaper than houses built in the North.
+
+There is no statistical evidence to support price difference from West to South houses.
+
+## 
+
+**Year Built Takeaways**
+
+2010 - 2019 houses are showing the largest price variation from other decades ranging anywhere from \$150,000 - \$200,000 more than older homes.
+
+Houses built in the 2000-2009 decade tend to be \$50,000 - \$115,000 more expensive than houses built in most time frames in the 1990s.
+
+There is also significant evidence to support houses built in the 1990-1999 decade are priced anywhere from \$30,000 - \$100,000 higher than older homes.

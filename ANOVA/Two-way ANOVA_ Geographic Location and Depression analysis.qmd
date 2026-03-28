@@ -1,0 +1,122 @@
+---
+title: "Two-way ANOVA: Geographic Location and Depression Analysis"
+author: Justin Gould
+format: pdf
+editor: visual
+---
+
+#### Installed packages:
+
+To begin, I loaded the Tidyverse package to perform my analysis on this assignment. I also loaded the Readxl package to open the spreadsheet files containing the medical data. Next, I set the working directory to a folder that contained both of the medical data files for this assignment. Lastly, I created a dataset titled "medical" that contained all patients in both study groups. Group 1 is patients with a non-conditions and group 2 is patients with arthritis, hypertension, and/or heart ailment.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+library(tidyverse)
+library(readxl)
+setwd("C:/Users/justi/OneDrive/Desktop/Grad School/UTSA 1st semester/STA 6443 Statistical Modeling")
+medical <- read_excel("medical.xlsx")
+
+```
+
+### Question 1:
+
+Use descriptive statistics to summarize the data from the two studies. What are your preliminary observations about the depression scores?
+
+**Code:** I used the following code chunk to evaluate the means across groups and states
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+medical |> group_by(state, group) |> summarize(mean_score = mean(score))
+```
+
+**Discussion:** My first observation was that the means from medical1 were 5.55, 8, and 7.05, while the means from medical2 were significantly larger being 14.5, 15.25, and 13.95. My second observation was that New York contained the highest levels of depression over North Carolina and New York.
+
+**Takeaway:** The increase in means shows that patients with arthritis, hypertension, and/or heart ailment have higher depression rates than patients that do not have these conditions. Additionally, new york showed the highest mean scores in both group 1 and 2.
+
+### Question 2:
+
+Use analysis of variance on both data sets. State the hypotheses being tested in each case. What are your conclusions?
+
+**The Hypotheses** We test two null hypothesis in this test:
+
+1.  The mean depression score is the same across all states (florida, new york, north carolina).
+2.  The mean depression score is the same across all groups (1 and 2)
+
+**AVOVA Test:** I used the as.factor command to change the state and medical columns to factors while leaving the score column as a numeric column.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+medical$state<-as.factor(medical$state)
+medical$group<-as.factor(medical$group)
+```
+
+I then used the following code to create a boxplot
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+library(ggplot2)
+ggplot(medical, aes(x = state, y = score, fill = group)) +
+      geom_boxplot() +
+      labs(title = "medical data",
+           x = "state",
+           y = "score") +
+      theme_minimal()
+```
+
+I then used the data to fit the anova test and viewed the results
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+two_way_anova_model <- aov(score ~ state+group, data = medical)
+summary(two_way_anova_model)
+```
+
+## **ANOVA test Conclusions:**
+
+Based off the states p = .0516 value **state was not significant to depression score**
+
+Based off the groups p = \<2e-16 value **groups are significant to depression score**
+
+### Question 3:
+
+Use inferences about individual treatment means where appropriate. What are your conclusions?
+
+## **Tukey test Conclusions:**
+
+**Tukey's Test**
+
+Next, I ran a Tukey's test to answer the question of which groups specifically are different from eachother.
+
+```{r}
+#| warning: false 
+#| message: false
+#| echo: true
+tukeys <- TukeyHSD(two_way_anova_model)
+print(tukeys)
+```
+
+On average New Yorkers score 1.6 points higher than Florida test subjects. The new york - florida p value = .046\~ making new york and florida **moderately significant** state factors that affect test score
+
+On average North carolina subjects score .475 points higher than Florida test subjects. The north carolina-florida p value = .76\~ making north carolina and florida **insignificant** state factors that affect test score
+
+On average North carolina subjects score .475 points higher than New yorkers The north carolina-new york p value = .22\~ making north carolina and new york **insignificant** state factors that affect test score
+
+## **Key Takeaways**
+
+1.  People with chronic illness have higher levels of depression than people in reasonably good health.
+
+We reject the second null hypothesis "The mean depression score is the same across all groups (1 and 2)." **Meaning the 2e-16 p value suggests strong evidence that depression score is highly dependent on whether a patient is in good health or has a chronic illness.**
+
+2.  State plays a very small role in depression rates. This is shown in the slight increase in score from New York patients to Florida patients.
+
+We fail to reject the first null hypothesis "The mean depression score is the same across all states (florida, new york, north carolina)." due to the .0524 p value. **Meaning we do not have have enough evidence to support state being a factor in major factor in depression score.**
